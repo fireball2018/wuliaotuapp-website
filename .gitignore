@@ -1,0 +1,13 @@
+*.pyc
+*.pyo
+*.wsgic
+.*.swp
+*.log
+*.kpf
+*.DS_Store
+*Thumbs.db
+/log
+/tmp
+/website/tmp
+/apps
+/.idea

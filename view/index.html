@@ -1,0 +1,43 @@
+<html>
+<head>
+    <title>无聊图</title>
+    <style type="text/css">
+
+    body{
+        text-align: center;
+        font-size: 16px;
+    }
+    img{
+        max-width: 760px;
+    }
+    .pager a {
+        font-size: 18px;
+    }
+    </style>
+</head>
+<body>
+
+<h1>无聊图</h1>
+
+<div style="width:760px; text-align:center;margin:10px auto">
+{% for pic in pics %}
+<p>
+<img src="{{ pic['url'] }}" /> <br /><br />
+{{ pic['desc'] }}
+</p>
+<hr />
+{% end %}
+</div>
+
+<div class="pager" style="width:760px; margin:20px auto 50px auto;text-align:center">
+{% if offset > 0 %}
+<a href="?page={{ page-1 }}">上一页</a>
+{% end %}
+
+{% if offset < total-limit%}
+<a href="?page={{ page+1 }}">下一页</a>
+{% end %}
+<div style="clear:both" ></div>
+</div>
+</body>
+</html>
