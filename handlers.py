@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+from __future__ import division
+
 import os
 import re
 import urllib2
 import hashlib
 import time
+import math
 
 from PIL import Image
 from StringIO import StringIO
@@ -18,7 +21,6 @@ import pylibmc
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 
-# from bs4 import BeautifulSoup
 from BeautifulSoup import BeautifulSoup
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -50,7 +52,7 @@ class index(BaseHandler):
         if page <= 1:
             page = 1
 
-        limit = 30
+        limit = 20
         offset = (page-1)*limit
 
         total = self.db.get("SELECT count(id) as total FROM pics")
@@ -59,7 +61,8 @@ class index(BaseHandler):
         pics = self.db.query("SELECT * FROM pics ORDER BY id DESC LIMIT %s,%s", offset, limit)
 
         if format =='json':
-            self.write({'pics':pics, 'page':page, 'total':total})
+            page_count = int(round(math.ceil(total/limit)))
+            self.write({'pics':pics, 'page':page, 'page_count':page_count, 'total':total})
         else:
             self.render("index.html", pics=pics, total=total, offset=offset, limit=limit, page=page)
 
