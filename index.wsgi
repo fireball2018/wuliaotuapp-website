@@ -21,6 +21,7 @@ class Application(tornado.wsgi.WSGIApplication):
         urls = [
             (r"/", handlers.index),
             (r"/index\.(json|html|xml)", handlers.index),
+            (r"/update\.(json|xml)", handlers.update),
             (r'/fetch_jandan/?([0-9]+)?$', handlers.fetch_jandan),
             (r'/download_image', handlers.download_image),
             (r"/install", handlers.install),

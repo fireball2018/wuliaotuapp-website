@@ -42,29 +42,46 @@ class index(BaseHandler):
     
     def get(self, format='html'):
 
-        page = self.get_argument('page', 1)
+        start = self.get_argument('start', 0)
 
         try:
-            page = int(page)
-        except:
-            page = 1
-
-        if page <= 1:
-            page = 1
+            start = int(start)
+        except Exception, e:
+            start = 1
 
         limit = 20
-        offset = (page-1)*limit
 
-        total = self.db.get("SELECT count(id) as total FROM pics")
+        total = self.db.get("SELECT count(id) as total FROM pics WHERE width>0 and height>0")
         total = total['total']
 
-        pics = self.db.query("SELECT * FROM pics ORDER BY id DESC LIMIT %s,%s", offset, limit)
+        max_id = self.db.get("SELECT max(id) as max_id FROM pics WHERE width>0 and height>0")
+        max_id = max_id['max_id']
+
+        min_id = self.db.get("SELECT min(id) as min_id FROM pics WHERE width>0 and height>0")
+        min_id = min_id['min_id']
+
+        if start <= 1:
+            start = max_id
+
+        pics = self.db.query("SELECT * FROM pics WHERE id<%s and width>0 and height>0 ORDER BY id DESC LIMIT %s", start, limit)
 
         if format =='json':
             page_count = int(round(math.ceil(total/limit)))
-            self.write({'pics':pics, 'page':page, 'page_count':page_count, 'total':total})
+            self.write({'pics':pics, 'total':total})
         else:
-            self.render("index.html", pics=pics, total=total, offset=offset, limit=limit, page=page)
+            self.render("index.html", pics=pics, max_id=max_id, min_id=min_id, limit=limit)
+
+class update(BaseHandler):
+
+    def get(self, format='json'):
+
+        last_id = int(self.get_argument("id", 0))
+
+        pics = []
+        if id > 0:
+            pics = self.db.query("SELECT * FROM pics WHERE id>%s and width>0 and height>0 ORDER BY id DESC LIMIT %s", id, 30)
+
+        self.write({'pics':pics})
 
 class install(BaseHandler):
     """docstring for install"""
@@ -80,6 +97,7 @@ CREATE TABLE IF NOT EXISTS `pics` (
   `source_url` varchar(256) NOT NULL,
   `width` int NOT NULL,
   `height` int NOT NULL,
+  `filesize` FLOAT NOT NULL DEFAULT  '0',
   `from` varchar(10) NOT NULL DEFAULT 'jandan',
   `category` varchar(10) NOT NULL DEFAULT 'default',
   `add_time` int(10) unsigned NOT NULL DEFAULT '0',
@@ -157,7 +175,7 @@ class fetch_jandan(BaseHandler):
 
             pic['desc']       = ''.join(text)
             pic['add_time']   = time.time()
-            pic['source_url'] = "http://jandan.net/pic/page-%s#%s" % (page, unique_id)
+            pic['source_url'] = "http://jandan.net/pic/page-%s#%s" % (current_page, unique_id)
 
             old_pic = self.db.get("SELECT * FROM pics WHERE unique_id='%s'" % pic['unique_id'])
 
@@ -219,5 +237,3 @@ class download_image(BaseHandler):
         self.write("ok")
 
         
-
-
