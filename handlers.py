@@ -25,10 +25,20 @@ from BeautifulSoup import BeautifulSoup
 
 class BaseHandler(tornado.web.RequestHandler):
     """docstring for BaseHandler"""
+
+    mc_client = None
     
     @property
     def db(self):
         return self.application.db
+
+    @property
+    def mc(self):
+
+        if not self.mc_client:
+            self.mc_client = pylibmc.Client()
+        
+        return self.mc_client
 
 class _404(BaseHandler):
     """docstring for _404"""
@@ -51,23 +61,28 @@ class index(BaseHandler):
 
         limit = 20
 
-        total = self.db.get("SELECT count(id) as total FROM pics WHERE width>0 and height>0")
-        total = total['total']
+        # total = self.db.get("SELECT count(id) as total FROM pics WHERE width>0 and height>0")
+        # total = total['total']
 
-        max_id = self.db.get("SELECT max(id) as max_id FROM pics WHERE width>0 and height>0")
-        max_id = max_id['max_id']
+        max_id = self.mc.get("pic-max-id")
 
-        min_id = self.db.get("SELECT min(id) as min_id FROM pics WHERE width>0 and height>0")
-        min_id = min_id['min_id']
+        if not max_id:
+            max_id = self.db.get("SELECT max(id) as max_id FROM pics WHERE width>0 and height>0")
+            max_id = max_id['max_id']
+
+            self.mc.set("pic-max-id", max_id)
+
+        # min_id = self.db.get("SELECT min(id) as min_id FROM pics WHERE width>0 and height>0")
+        min_id = 1 #min_id['min_id']
 
         if start <= 1:
-            start = max_id
+            start = max_id + 1
 
         pics = self.db.query("SELECT * FROM pics WHERE id<%s and width>0 and height>0 ORDER BY id DESC LIMIT %s", start, limit)
 
         if format =='json':
             page_count = int(round(math.ceil(total/limit)))
-            self.write({'pics':pics, 'total':total})
+            self.write({'pics':pics, 'max':max_id})
         else:
             self.render("index.html", pics=pics, max_id=max_id, min_id=min_id, limit=limit)
 
@@ -99,7 +114,11 @@ CREATE TABLE IF NOT EXISTS `pics` (
   `height` int NOT NULL,
   `filesize` FLOAT NOT NULL DEFAULT  '0',
   `from` varchar(10) NOT NULL DEFAULT 'jandan',
+  `vote` int(10) unsigned NOT NULL DEFAULT '0',
+  `up` int(10) unsigned NOT NULL DEFAULT '0',
+  `down` int(10) unsigned NOT NULL DEFAULT '0',
   `category` varchar(10) NOT NULL DEFAULT 'default',
+  `adult` tinyint(3) unsigned NOT NULL DEFAULT '0',
   `add_time` int(10) unsigned NOT NULL DEFAULT '0',
   `desc` mediumtext NOT NULL,
   PRIMARY KEY (`id`),
@@ -132,22 +151,20 @@ class fetch_jandan(BaseHandler):
 
             if current_page:
                 current_page = int(current_page)
-
-            mc = pylibmc.Client()
                 
             #如果没有页码则检索所有页面
-            if not mc.get('jandan_current_page'):
+            if not self.mc.get('jandan_current_page'):
 
                 # for i in range(1, current_page+1):
                     # add_task('fetch', '/fetch_jandan/%s' % i)
 
-                mc.set("jandan_current_page", current_page)
+                self.mc.set("jandan_current_page", current_page)
                 return
             #如果换页了要检索上一页
-            elif int(mc.get("jandan_current_page")) < current_page:
+            elif int(self.mc.get("jandan_current_page")) < current_page:
                 add_task('fetch', '/fetch_jandan/%s' % (current_page-1))
 
-            mc.set("jandan_current_page", current_page)
+            self.mc.set("jandan_current_page", current_page)
         else:
             current_page = page
 
@@ -193,7 +210,6 @@ class fetch_jandan(BaseHandler):
                  VALUES('%(unique_id)s','%(url)s', '0', '0', '%(source_url)s', 'jandan','%(desc)s', '%(add_time)s')""" % pic
 
             row_id = self.db.execute(sql)
-
             if row_id:
                 payload = "id=%(id)s&url=%(url)s" % {'id':row_id, 'url':pic['url']}
                 add_task('download_image', '/download_image', payload)
@@ -232,8 +248,12 @@ class download_image(BaseHandler):
         sql = """UPDATE pics SET width='%s',height='%s' WHERE id='%s'""" % (source_width, source_height, id)
         self.db.execute(sql)
 
+        if source_width > 0 and source_height > 0:
+            max_id = self.db.get("SELECT max(id) as max_id FROM pics WHERE width>0 and height>0")
+            max_id = max_id['max_id']
+
+            self.mc.set("pic-max-id", max_id)
+
         imagefile = None
 
         self.write("ok")
-
-        

@@ -42,12 +42,13 @@
 
 <div class="pager" style="margin:20px auto 50px auto;text-align:center">
 {% if pics[0]['id'] < max_id %}
-<a href="?start={{ pics[0]['id']+limit+1 }}">上一页</a>
+<a href="?start={{ pics[0]['id']+limit }}">上一页</a>
 {% end %}
 
 {% if pics[-1]['id'] > min_id %}
 <a href="?start={{ pics[-1]['id'] }}">下一页</a>
 {% end %}
+<!-- first: {{ pics[0]['id'] }}, last: {{ pics[-1]['id'] }}, max: {{ max_id }}, min: {{ min_id }} -->
 <div style="clear:both" ></div>
 </div>
 </body>
